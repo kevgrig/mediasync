@@ -144,13 +144,18 @@ def main():
       if options.rmdir and destination.exists():
         #shutil.rmtree(destination)
 
-        for destination_path in glob.glob(f"{destination}/*"):
+        filesToDelete = glob.glob(f"{destination}/*")
+        print(f"Recursively deleting {destination}/*: {filesToDelete}")
+
+        for destination_path in filesToDelete:
           if os.path.isdir(destination_path):
-            shutil.rmtree(destination)
+            print(f"Deleting directory {destination_path}")
+            shutil.rmtree(destination_path)
           else:
+            print(f"Deleting file {destination_path}")
             os.remove(destination_path)
 
-        print(f"Recursively deleted {destination}")
+        print(f"Recursively deleted {destination}/*")
       
       if not destination.exists():
         destination.mkdir(parents=True)
