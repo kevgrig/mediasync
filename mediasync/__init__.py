@@ -14,6 +14,7 @@ import io
 import os
 import sys
 import glob
+import time
 import shutil
 import inspect
 import os.path
@@ -164,6 +165,9 @@ def main():
 
           i = 1
           copied = 0
+
+          copied_files = []
+
           for file in files:
             filepath = pathlib.Path(file)
 
@@ -193,9 +197,21 @@ def main():
             if filepath.exists():
               shutil.copyfile(file, destination_path)
               copied += 1
+
+              copied_files.append(destination_path)
             else:
               print(f"Warning: File not found: {filepath}")
           
+          # Now touch in reverse order so that the first file is newest
+          i = 1
+          for file in reversed(copied_files):
+            print(f"[{i}/{len(copied_files)}] Touching {file}")
+            pathlib.Path(file).touch()
+            time.sleep(1)
+            i += 1
+
+          print(f"Finished touching files")
+
           if sys.platform != "win32" and not options.nosync:
             print("Performing sync...")
             completed_process = subprocess.run("sudo sync", shell=True, check=True, capture_output=True)
