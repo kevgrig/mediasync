@@ -13,6 +13,7 @@ Examples:
 import io
 import os
 import sys
+import glob
 import shutil
 import inspect
 import os.path
@@ -140,7 +141,14 @@ def main():
         destination = destination.joinpath(options.playlist_name)
 
       if options.rmdir and destination.exists():
-        shutil.rmtree(destination)
+        #shutil.rmtree(destination)
+
+        for destination_path in glob.glob(f"{destination}/*"):
+          if os.path.isdir(destination_path):
+            shutil.rmtree(destination)
+          else:
+            os.remove(destination_path)
+
         print(f"Recursively deleted {destination}")
       
       if not destination.exists():
