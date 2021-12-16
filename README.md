@@ -11,6 +11,7 @@ usage:
 1. List Winamp playlists:
 
         $ python -m mediasync listplaylists -s winamp
+        $ python -m mediasync listplaylists -s directory --directory /work/music/playlists/
 
 1. List Winamp playlist files: 
 
@@ -24,5 +25,6 @@ usage:
 
 	$ P="Latest"; F="001"; python -m mediasync syncplaylist -r -s winamp "${P}" "/run/media/${USER}/USB128GB/music/${F}-${P}"
 	$ P="Favorites"; F="002"; python -m mediasync syncplaylist -r -s winamp "${P}" "/run/media/${USER}/USB128GB/music/${F}-${P}"
-
 	$ P="Favorites"; python -m mediasync syncplaylist -r -s winamp "${P}" /run/media/${USER}/*/
+
+        $ python -m mediasync syncplaylist -r -s directory /work/music/playlists/Bballfun.m3u /run/media/kevin/7BEE-1708/

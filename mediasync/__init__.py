@@ -36,7 +36,7 @@ def add_remainder_arg(parser):
   parser.add_argument("args", help="Arguments for the data source", nargs=argparse.REMAINDER)
 
 def add_basics_args(parser):
-  parser.add_argument("-s", "--source", choices=["winamp"], help="Media source", required=True)
+  parser.add_argument("-s", "--source", choices=["directory", "winamp"], help="Media source", required=True)
   parser.add_argument("--directory", default="~/.wine/drive_c/users/${USER}/Application Data/Winamp/", help="Data directory")
   parser.add_argument("--encoding", default="ISO-8859-1", help="Data encoding")
   parser.add_argument("--dataoffset", default=2, help="Data offset")
@@ -83,6 +83,72 @@ def get_winamp_playlist_files_with_path(options, playlist_path):
 
   return result
 
+def syncfiles(files, destination, options):
+  if len(files) > 0:
+
+    print(f"Copying {len(files)} files to {destination}...")
+
+    i = 1
+    copied = 0
+
+    copied_files = []
+
+    for file in files:
+      filepath = pathlib.Path(file)
+
+      number_width = 9
+
+      if len(files) < 10:
+        number_width = 1
+      elif len(files) < 100:
+        number_width = 2
+      elif len(files) < 1000:
+        number_width = 3
+      elif len(files) < 10000:
+        number_width = 4
+      elif len(files) < 100000:
+        number_width = 5
+
+      format_string = "{0:0" + str(number_width) + "}"
+      destination_name = format_string.format(i)
+      destination_name += " - "
+      destination_name += filepath.name
+      destination_path = destination.joinpath(destination_name)
+
+      print(f"[{i}/{len(files)}] Copying {file} to {destination_path}")
+
+      i += 1
+
+      if filepath.exists():
+        shutil.copyfile(file, destination_path)
+        copied += 1
+
+        copied_files.append(destination_path)
+      else:
+        print(f"Warning: File not found: {filepath}")
+    
+    # Now touch in reverse order so that the first file is newest
+    i = 1
+    for file in reversed(copied_files):
+      print(f"[{i}/{len(copied_files)}] Touching {file}")
+      pathlib.Path(file).touch()
+      time.sleep(1)
+      i += 1
+
+    print(f"Finished touching files")
+
+    if sys.platform != "win32" and not options.nosync:
+      print("Performing sync...")
+      completed_process = subprocess.run("sudo sync", shell=True, check=True, capture_output=True)
+      if completed_process.stdout is not None and len(completed_process.stdout) > 0:
+        print(f"stdout: {completed_process.stdout}")
+      if completed_process.stderr is not None and len(completed_process.stderr) > 0:
+        print(f"stderr: {completed_process.stderr}")
+
+    print(f"Copied {copied} files to {destination}")
+  else:
+    print("Error: playlist not found")
+
 def main():
   try:
     args = sys.argv[1:]
@@ -118,6 +184,10 @@ def main():
         for child in dom.documentElement.getElementsByTagName("playlist"):
           playlist = child.getAttribute("title")
           print(playlist)
+      elif options.source == "directory":
+        for file in os.listdir(options.directory):
+          if file.endswith(".m3u"):
+            print(os.path.join(options.directory, file))
       else:
         raise NotImplementedError()
 
@@ -129,6 +199,16 @@ def main():
         if len(files) > 0:
           for file in files:
             print(file)
+        else:
+          print("Error: playlist not found")
+      elif options.source == "directory":
+        files = get_winamp_playlist_files_with_path(options, pathlib.Path(options.playlist_name))
+        if len(files) > 0:
+          totalsize = 0
+          for file in files:
+            print(file)
+            totalsize += os.path.getsize(file)
+          print("Total size: " + str(totalsize))
         else:
           print("Error: playlist not found")
       else:
@@ -164,70 +244,12 @@ def main():
         dom = get_winamp_playlists_xml(options)
 
         files = get_winamp_playlist_files(options, options.playlist_name, dom)
-        if len(files) > 0:
 
-          print(f"Copying {len(files)} files to {destination}...")
+        syncfiles(files, destination, options)
+      elif options.source == "directory":
+        files = get_winamp_playlist_files_with_path(options, pathlib.Path(options.playlist_name))
 
-          i = 1
-          copied = 0
-
-          copied_files = []
-
-          for file in files:
-            filepath = pathlib.Path(file)
-
-            number_width = 9
-
-            if len(files) < 10:
-              number_width = 1
-            elif len(files) < 100:
-              number_width = 2
-            elif len(files) < 1000:
-              number_width = 3
-            elif len(files) < 10000:
-              number_width = 4
-            elif len(files) < 100000:
-              number_width = 5
-
-            format_string = "{0:0" + str(number_width) + "}"
-            destination_name = format_string.format(i)
-            destination_name += " - "
-            destination_name += filepath.name
-            destination_path = destination.joinpath(destination_name)
-
-            print(f"[{i}/{len(files)}] Copying {file} to {destination_path}")
-
-            i += 1
-
-            if filepath.exists():
-              shutil.copyfile(file, destination_path)
-              copied += 1
-
-              copied_files.append(destination_path)
-            else:
-              print(f"Warning: File not found: {filepath}")
-          
-          # Now touch in reverse order so that the first file is newest
-          i = 1
-          for file in reversed(copied_files):
-            print(f"[{i}/{len(copied_files)}] Touching {file}")
-            pathlib.Path(file).touch()
-            time.sleep(1)
-            i += 1
-
-          print(f"Finished touching files")
-
-          if sys.platform != "win32" and not options.nosync:
-            print("Performing sync...")
-            completed_process = subprocess.run("sudo sync", shell=True, check=True, capture_output=True)
-            if completed_process.stdout is not None and len(completed_process.stdout) > 0:
-              print(f"stdout: {completed_process.stdout}")
-            if completed_process.stderr is not None and len(completed_process.stderr) > 0:
-              print(f"stderr: {completed_process.stderr}")
-
-          print(f"Copied {copied} files to {destination}")
-        else:
-          print("Error: playlist not found")
+        syncfiles(files, destination, options)
       else:
         raise NotImplementedError()
 
